@@ -1,5 +1,7 @@
 apply plugin: 'base' 
-
+repositories {
+	mavenCentral()
+}
 configurations {
    compile
    runtime { extendsFrom configurations.compile } 
@@ -7,7 +9,7 @@ configurations {
    testRuntime { extendsFrom configurations.runtime }
 } 
 dependencies {
-   testCompile 'com.foo:bar:1.0'
+   testCompile 'junit:junit:4.12'
 }
 task compileJava(type: PlatformJavaCompile) {
 	FileTree tree3 = fileTree('src/level3/java')
@@ -24,4 +26,27 @@ task compileJava(type: PlatformJavaCompile) {
 	sourceCompatibility = '1.8'
 	platform = org.gradle.jvm.platform.internal.DefaultJavaPlatform.current()
 }
+task compileTestJava(type: PlatformJavaCompile) {
+	dependsOn compileJava
+	source = fileTree('src/test/java')
+	classpath = configurations.testCompile.plus(files(compileJava.destinationDir))
+	destinationDir = file("$buildDir/test-classes/main")
+	targetCompatibility = '1.8'
+	sourceCompatibility = '1.8'
+	platform = org.gradle.jvm.platform.internal.DefaultJavaPlatform.current()
+}
+/*
+task test(type: Test) {
+	dependsOn compileTestJava
+	testClassesDirs = files('src/test/java')
+	classpath = configurations.testRuntime.plus(files(compileTestJava.destinationDir))
+	testLogging.showStandardStreams = true
+	workingDir = projectDir
+	reports {
+        junitXml.enabled = false
+        html.enabled = true
+    }
+}
+*/
 assemble.dependsOn compileJava
+check.dependsOn compileTestJava
