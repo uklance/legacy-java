@@ -1,52 +1,29 @@
-apply plugin: 'base' 
+import org.gradle.api.internal.file.collections.*
+import org.gradle.api.internal.file.*
+
+apply plugin: 'java' 
 repositories {
 	mavenCentral()
 }
-configurations {
-   compile
-   runtime { extendsFrom configurations.compile } 
-   testCompile { extendsFrom configurations.compile }
-   testRuntime { extendsFrom configurations.runtime }
-} 
 dependencies {
    testCompile 'junit:junit:4.12'
 }
-task compileJava(type: PlatformJavaCompile) {
-	FileTree tree3 = fileTree('src/level3/java')
-	FileTree tree2 = fileTree('src/level2/java').matching {
-		include { FileTreeElement el ->	el.directory || !file("src/level3/java/${el.path}").exists() }
+sourceSets {
+	main {
+		java {
+			FileTree overridden1 = fileTree('src/level1/java').matching {
+				include { FileTreeElement el -> el.directory || file("src/level2/java/${el.path}").exists() || file("src/level3/java/${el.path}").exists() }
+			}
+			FileTree overridden2 = fileTree('src/level2/java').matching {
+				include { FileTreeElement el -> el.directory || file("src/level3/java/${el.path}").exists() }
+			}
+			Set<File> overridden = overridden1.plus(overridden2).files
+			srcDirs = ['src/level1/java', 'src/level2/java', 'src/level3/java']
+			exclude { FileTreeElement el -> overridden.contains(el.file) }
+		}
 	}
-	FileTree tree1 = fileTree('src/level1/java').matching {
-		include { FileTreeElement el -> el.directory || (!file("src/level3/java/${el.path}").exists() && !file("src/level2/java/${el.path}").exists()) }
-	}
-	source = tree3.plus(tree2).plus(tree1)
-	classpath = configurations.compile
-	destinationDir = file("$buildDir/classes/main")
-	targetCompatibility = '1.8'
-	sourceCompatibility = '1.8'
-	platform = org.gradle.jvm.platform.internal.DefaultJavaPlatform.current()
 }
-task compileTestJava(type: PlatformJavaCompile) {
-	dependsOn compileJava
-	source = fileTree('src/test/java')
-	classpath = configurations.testCompile.plus(files(compileJava.destinationDir))
-	destinationDir = file("$buildDir/test-classes/main")
-	targetCompatibility = '1.8'
-	sourceCompatibility = '1.8'
-	platform = org.gradle.jvm.platform.internal.DefaultJavaPlatform.current()
-}
-/*
-task test(type: Test) {
-	dependsOn compileTestJava
-	testClassesDirs = files('src/test/java')
-	classpath = configurations.testRuntime.plus(files(compileTestJava.destinationDir))
+
+test {
 	testLogging.showStandardStreams = true
-	workingDir = projectDir
-	reports {
-        junitXml.enabled = false
-        html.enabled = true
-    }
 }
-*/
-assemble.dependsOn compileJava
-check.dependsOn compileTestJava
