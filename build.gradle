@@ -1,44 +1,27 @@
-task makeFiles {
- doLast {
-  def makeMap = [
-   level1: ['A', 'B', 'C', 'D', 'E', 'L1'],
-   level2: ['A', 'B', 'L2'],   
-   level3: ['A', 'L3']
-  ]
-  makeMap.each { level, simpleNames ->
-   simpleNames.each { simpleName ->
-    File javaFile = file("src/$level/java/com/foo/${simpleName}.java")
-    javaFile.parentFile.mkdirs()
-    javaFile.text = 
-"""package com.foo;
-public class $simpleName {
- public String getValue() {
-  return \"${level}${simpleName}\";
- }
-}
-"""    
-    logger.lifecycle "Created $javaFile" 
-   }
-  }
- }
-}
+apply plugin: 'base' 
 
-task printTrees {
- dependsOn makeFiles
- doLast {
-  FileTree tree3 = fileTree('src/level3/java')
-  FileTree tree2 = fileTree('src/level2/java').matching {
-   include { FileTreeElement el ->
-    return el.directory || !file("src/level3/java/${el.path}").exists()
-   }
-  }
-  FileTree tree1 = fileTree('src/level1/java').matching {
-   include { FileTreeElement el ->
-    return el.directory || (!file("src/level3/java/${el.path}").exists() && !file("src/level2/java/${el.path}").exists())
-   }
-  }
-  tree3.plus(tree2).plus(tree1).each {
-   println "$it"
-  }
- }
+configurations {
+   compile
+   runtime { extendsFrom configurations.compile } 
+   testCompile { extendsFrom configurations.compile }
+   testRuntime { extendsFrom configurations.runtime }
+} 
+dependencies {
+   testCompile 'com.foo:bar:1.0'
 }
+task compileJava(type: PlatformJavaCompile) {
+	FileTree tree3 = fileTree('src/level3/java')
+	FileTree tree2 = fileTree('src/level2/java').matching {
+		include { FileTreeElement el ->	el.directory || !file("src/level3/java/${el.path}").exists() }
+	}
+	FileTree tree1 = fileTree('src/level1/java').matching {
+		include { FileTreeElement el -> el.directory || (!file("src/level3/java/${el.path}").exists() && !file("src/level2/java/${el.path}").exists()) }
+	}
+	source = tree3.plus(tree2).plus(tree1)
+	classpath = configurations.compile
+	destinationDir = file("$buildDir/classes/main")
+	targetCompatibility = '1.8'
+	sourceCompatibility = '1.8'
+	platform = org.gradle.jvm.platform.internal.DefaultJavaPlatform.current()
+}
+assemble.dependsOn compileJava
